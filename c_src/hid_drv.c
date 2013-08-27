@@ -109,7 +109,7 @@ typedef struct _hid_ctx_t
     ErlDrvEvent    event;    // input event handle
     ErlDrvTermData receiver; // receiver of input
     uint32_t       ref;
-    int            active;
+    int            active;   // 0 = off, <0 = on, >0 = event count (down)
     int            buflen;
 } hid_ctx_t;
 
@@ -172,12 +172,14 @@ static void emit_log(int level, char* file, int line, ...)
 
     if ((level == DLOG_EMERGENCY) ||
 	((debug_level >= 0) && (level <= debug_level))) {
+	int save_errno = errno;
 	va_start(ap, line);
 	fmt = va_arg(ap, char*);
 	fprintf(stderr, "%s:%d: ", file, line); 
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\r\n");
 	va_end(ap);
+	errno = save_errno;
     }
 }
 
@@ -230,16 +232,16 @@ static size_t device_info_size(struct hid_device_info* ptr)
     return sz + 2;  // ERL_DRV_LIST: <n>
 }
 
-static int build_wstring(ErlDrvTermData* data, int j, wchar_t* wptr)
+static int build_wstring(ErlDrvTermData* data, int j, wchar_t* wstr)
 {
-    if (wptr == NULL)
+    if (wstr == NULL)
 	data[j++] = ERL_DRV_NIL;
     else {
-	int len = 0;
-	while(*wptr != 0) {
+        int len = wcslen(wstr);
+	int i;
+	for (i = 0; i< len; i++) {
 	    data[j++] = ERL_DRV_UINT;
-	    data[j++] = (ErlDrvTermData) *wptr++;
-	    len++;
+	    data[j++] = (ErlDrvTermData) wstr[i];
 	}
 	data[j++] = ERL_DRV_NIL;
 	data[j++] = ERL_DRV_LIST;
@@ -292,9 +294,11 @@ static int device_info_build(ErlDrvTermData* data, int j, struct hid_device_info
 	ptr = ptr->next;
 	i++;
     }
-
-    data[j++] = ERL_DRV_LIST;
-    data[j++] = (ErlDrvTermData) i;
+    data[j++] = ERL_DRV_NIL;
+    if (i > 0) {
+      data[j++] = ERL_DRV_LIST;
+      data[j++] = (ErlDrvTermData) i+1;
+    }
     return j;
 }
 
@@ -442,8 +446,9 @@ static ErlDrvSSizeT hid_drv_ctl(ErlDrvData d,
 	    goto badarg;
 	vid = get_uint16(buf);
 	pid = get_uint16(buf+2);
-	for (i = 4, j=0; (i < len) && (j < MAX_SERIAL); i += 4, j++)
-	    serial[j] = get_uint32(buf+i);
+	j = 0;
+	for (i = 4; (i < len) && (j < MAX_SERIAL); i += 4)
+	    serial[j++] = get_uint32(buf+i);
 	if (j > 0) {
 	    serial[j++] = 0;
 	    serp = serial;
@@ -573,18 +578,15 @@ static ErlDrvSSizeT hid_drv_ctl(ErlDrvData d,
 
     case CMD_SET_ACTIVE: {
 	int active;
-	if ((ctx->dev == NULL) || (len != 1))
+	if ((ctx->dev == NULL) || (len != 4))
 	    goto badarg;
-	active = buf[0];
-	if (active != ctx->active) {
-	    if (active) {
-		ctx->receiver = driver_caller(ctx->port);
-		driver_select(ctx->port, ctx->event, ERL_DRV_READ, 1);
-	    }
-	    else
-		driver_select(ctx->port, ctx->event, ERL_DRV_READ, 0);
-	    ctx->active = active;
-	}
+	active = get_int32(buf);
+	if (!active && ctx->active)
+	    driver_select(ctx->port, ctx->event, ERL_DRV_READ, 0);
+	else if (!ctx->active && active)
+	    driver_select(ctx->port, ctx->event, ERL_DRV_READ, 1);
+	ctx->receiver = driver_caller(ctx->port);  // direct to latest caller
+	ctx->active = active;
 	goto ok;
     }
 
@@ -616,14 +618,12 @@ badarg:
     goto error;
 
 werror: {
-	const wchar_t* err_wstr;
+	const wchar_t* err_wstr = NULL;
 	if (ctx->dev)
 	    err_wstr = hid_error(ctx->dev);
-	else
-	    err_wstr = L"unknown";
-
+	if (err_wstr == NULL)
+	  goto error; // try posix error
 	DEBUGF("hid: werror %ls\n", err_wstr);
-
 	return ctl_string_reply(ctx, 5, (wchar_t*) err_wstr, rbuf, rsize);
     }
 
@@ -667,22 +667,25 @@ static void hid_drv_ready_input(ErlDrvData d, ErlDrvEvent e)
     uint8_t  buf[MAX_READ_LENGTH];
     hid_ctx_t* ctx = (hid_ctx_t*) d;
 
-    DEBUGF("hid_drv: ready_input called");
     if (ctx->event == e) {
 	ErlDrvTermData msg[16];
 	int n;
 	int i = 0;
 	int len = ctx->buflen;
 
-	if (len > MAX_READ_LENGTH)
-	    len = MAX_READ_LENGTH;
+	if (len > sizeof(buf))
+	    len = sizeof(buf);
+
+	DEBUGF("hid_drv: ready_input called (len=%d)", len);
 
 	if ((n = hid_read_timeout(ctx->dev, buf, len, 0)) < 0) {
-	    DEBUGF("hid_drv: hid_read_timeout failed");
+	    DEBUGF("hid_drv: hid_read_timeout failed: %s", strerror(errno));
 	    return;
 	}
-	if (n == 0)  // no data
+	if (n == 0) {  // no data
+	    DEBUGF("hid_drv: hid_read_timeout no data");
 	    return;
+	}
 	// send {hid, <port>, <<data>>}
 	msg[i++] = ERL_DRV_ATOM;
 	msg[i++] = ATOM(hid);
@@ -699,9 +702,10 @@ static void hid_drv_ready_input(ErlDrvData d, ErlDrvEvent e)
 	
 	SEND_TERM(ctx, ctx->receiver, msg, i); 
 
-	if (ctx->active == 2) {
-	    driver_select(ctx->port, ctx->event, ERL_DRV_READ, 0);
-	    ctx->active = 0;
+	if (ctx->active > 0) {
+	    ctx->active--;
+	    if (ctx->active == 0)
+		driver_select(ctx->port, ctx->event, ERL_DRV_READ, 0);
 	}
     }
 }
