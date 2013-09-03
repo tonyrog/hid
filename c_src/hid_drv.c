@@ -44,8 +44,8 @@ typedef int  ErlDrvSSizeT;
 #define CMD_OPEN                     2
 #define CMD_OPEN_PATH                3
 #define CMD_WRITE                    4
-#define CMD_BUFFER                   5
-#define CMD_ACTIVE                   6
+#define CMD_SET_BUFFER               5
+#define CMD_SET_ACTIVE               6
 #define CMD_SEND_FEATURE_REPORT      7
 #define CMD_GET_FEATURE_REPORT       8
 #define CMD_CLOSE                    9
@@ -53,7 +53,7 @@ typedef int  ErlDrvSSizeT;
 #define CMD_GET_PRODUCT_STRING       11
 #define CMD_GET_SERIAL_NUMBER_STRING 12
 #define CMD_GET_INDEXED_STRING       13
-#define CMD_DEBUG                    14
+#define CMD_SET_DEBUG                14
 
 #define MAX_STRING      1024
 #define MAX_PATH        1024
@@ -367,6 +367,8 @@ static void hid_drv_stop(ErlDrvData d)
 {
     hid_ctx_t* ctx = (hid_ctx_t*) d;
     if (ctx->dev != NULL) {
+	if (ctx->active)
+	    driver_select(ctx->port, ctx->event, ERL_DRV_READ, 0);
 	hid_close(ctx->dev);
 	ctx->dev = NULL;
     }
@@ -474,7 +476,7 @@ static ErlDrvSSizeT hid_drv_ctl(ErlDrvData d,
 	return ctl_reply(4, (void*) &n, sizeof(n), rbuf, rsize);
     }
 
-    case CMD_BUFFER: {
+    case CMD_SET_BUFFER: {
 	uint32_t length;
 	if (len != 4)
 	    goto badarg;
@@ -567,7 +569,7 @@ static ErlDrvSSizeT hid_drv_ctl(ErlDrvData d,
 	return ctl_string_reply(ctx, 3, string, rbuf, rsize);
     }
 
-    case CMD_ACTIVE: {
+    case CMD_SET_ACTIVE: {
 	int active;
 	if ((ctx->dev == NULL) || (len != 1))
 	    goto badarg;
@@ -584,7 +586,7 @@ static ErlDrvSSizeT hid_drv_ctl(ErlDrvData d,
 	goto ok;
     }
 
-    case CMD_DEBUG: {
+    case CMD_SET_DEBUG: {
 	if (len != 4)
 	    goto badarg;
 	debug_level = get_int32(buf);
@@ -648,7 +650,7 @@ static void hid_drv_event(ErlDrvData d, ErlDrvEvent e,
 
 static void hid_drv_ready_input(ErlDrvData d, ErlDrvEvent e)
 {
-    uint8_t  data[MAX_READ_LENGTH];
+    uint8_t  buf[MAX_READ_LENGTH];
     hid_ctx_t* ctx = (hid_ctx_t*) d;
 
     DEBUGF("hid_drv: ready_input called");
@@ -661,7 +663,7 @@ static void hid_drv_ready_input(ErlDrvData d, ErlDrvEvent e)
 	if (len > MAX_READ_LENGTH)
 	    len = MAX_READ_LENGTH;
 
-	if ((n = hid_read_timeout(ctx->dev, data, len, 0)) < 0) {
+	if ((n = hid_read_timeout(ctx->dev, buf, len, 0)) < 0) {
 	    DEBUGF("hid_drv: hid_read_timeout failed");
 	    return;
 	}
@@ -675,13 +677,13 @@ static void hid_drv_ready_input(ErlDrvData d, ErlDrvEvent e)
 	msg[i++] = ctx->dport;
 
 	msg[i++] = ERL_DRV_BUF2BINARY;
-	msg[i++] = (ErlDrvTermData) &data[1];
-	msg[i++] = n-1;
+	msg[i++] = (ErlDrvTermData) buf;
+	msg[i++] = n;
 
 	msg[i++] = ERL_DRV_TUPLE;
 	msg[i++] = 3;
 	
-	SEND_TERM(ctx, ctx->receiver, msg, i);	
+	SEND_TERM(ctx, ctx->receiver, msg, i); 
 
 	if (ctx->active == 2) {
 	    driver_select(ctx->port, ctx->event, ERL_DRV_READ, 0);

@@ -22,8 +22,8 @@
 -define(CMD_OPEN,                     2).
 -define(CMD_OPEN_PATH,                3).
 -define(CMD_WRITE,                    4).
--define(CMD_BUFFER,                   5).
--define(CMD_ACTIVE,                   6).
+-define(CMD_SET_BUFFER,               5).
+-define(CMD_SET_ACTIVE,               6).
 -define(CMD_SEND_FEATURE_REPORT,      7).
 -define(CMD_GET_FEATURE_REPORT,       8).
 -define(CMD_CLOSE,                    9).
@@ -31,7 +31,7 @@
 -define(CMD_GET_PRODUCT_STRING,       11).
 -define(CMD_GET_SERIAL_NUMBER_STRING, 12).
 -define(CMD_GET_INDEXED_STRING,       13).
--define(CMD_DEBUG,                    14).
+-define(CMD_SET_DEBUG,                14).
 
 -define(is_uint8(X), (((X) band (bnot 16#ff)) =:= 0)).
 -define(is_uint16(X), (((X) band (bnot 16#ffff)) =:= 0)).
@@ -152,20 +152,20 @@ write(Port, Data) when is_port(Port), is_binary(Data) ->
     write_(Port, Data).
 
 setopts(Port, [{active,true}|Opts]) when is_port(Port) ->
-    call(Port, ?CMD_ACTIVE, <<1>>),
+    call(Port, ?CMD_SET_ACTIVE, <<1>>),
     setopts(Port, Opts);
 setopts(Port, [{active,false}|Opts]) when is_port(Port) ->
-    call(Port, ?CMD_ACTIVE, <<0>>),
+    call(Port, ?CMD_SET_ACTIVE, <<0>>),
     setopts(Port, Opts);
 setopts(Port, [{active,once}|Opts]) when is_port(Port) ->
-    call(Port, ?CMD_ACTIVE, <<2>>),
+    call(Port, ?CMD_SET_ACTIVE, <<2>>),
     setopts(Port, Opts);
 setopts(Port, [{buffer,Size}|Opts]) when is_port(Port), is_integer(Size),
 					 Size > 0 ->
-    call(Port, ?CMD_BUFFER, <<Size:32>>),
+    call(Port, ?CMD_SET_BUFFER, <<Size:32>>),
     setopts(Port, Opts);
 setopts(Port, [{debug,Level}|Opts]) when is_port(Port), is_integer(Level) ->
-    call(Port, ?CMD_DEBUG, <<Level:32>>),
+    call(Port, ?CMD_SET_DEBUG, <<Level:32>>),
     setopts(Port, Opts);
 
 setopts(_Port, []) ->
