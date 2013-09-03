@@ -1,0 +1,8 @@
+{application, hid,
+ [{description, "hidapi binding"},
+  {vsn, "1.0"},
+  {mod, {hid_app, []}},
+  {registered, []},
+  {env, []},
+  {applications,[kernel,stdlib]}
+  ]}.
