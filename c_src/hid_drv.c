@@ -54,12 +54,14 @@ typedef int  ErlDrvSSizeT;
 #define CMD_GET_SERIAL_NUMBER_STRING 12
 #define CMD_GET_INDEXED_STRING       13
 #define CMD_SET_DEBUG                14
+#define CMD_GET_REPORT_DESCRIPTOR    15
 
 #define MAX_STRING      1024
 #define MAX_PATH        1024
 #define MAX_SERIAL      1024
 #define MAX_REPORT      1024
 #define MAX_READ_LENGTH 4096
+#define MAX_DESCRIPTOR  4096
 
 static inline uint32_t get_uint32(uint8_t* ptr)
 {
@@ -530,7 +532,7 @@ static ErlDrvSSizeT hid_drv_ctl(ErlDrvData d,
     case CMD_GET_MANUFACTURER_STRING: {
 	wchar_t  string[MAX_STRING+1];
 
-	if (ctx->dev == NULL)
+	if ((len != 0) || (ctx->dev == NULL))
 	    goto badarg;
 	if (hid_get_manufacturer_string(ctx->dev, string, MAX_STRING) < 0)
 	    goto werror;
@@ -540,7 +542,7 @@ static ErlDrvSSizeT hid_drv_ctl(ErlDrvData d,
     case CMD_GET_PRODUCT_STRING: {
 	wchar_t  string[MAX_STRING+1];
 
-	if (ctx->dev == NULL)
+	if ((len != 0) || (ctx->dev == NULL))
 	    goto badarg;
 	if (hid_get_product_string(ctx->dev, string, MAX_STRING) < 0)
 	    goto werror;
@@ -550,7 +552,7 @@ static ErlDrvSSizeT hid_drv_ctl(ErlDrvData d,
     case CMD_GET_SERIAL_NUMBER_STRING: {
 	wchar_t  string[MAX_STRING+1];
 
-	if (ctx->dev == NULL)
+	if ((len != 0) || (ctx->dev == NULL))
 	    goto badarg;
 	if (hid_get_serial_number_string(ctx->dev, string, MAX_STRING) < 0)
 	    goto werror;
@@ -592,6 +594,18 @@ static ErlDrvSSizeT hid_drv_ctl(ErlDrvData d,
 	debug_level = get_int32(buf);
 	goto ok;
     }
+
+    case CMD_GET_REPORT_DESCRIPTOR: {
+	unsigned char desc[MAX_DESCRIPTOR];
+	int n;
+
+	if ((len != 0) || (ctx->dev == NULL))
+	    goto badarg;
+	if ((n = hid_get_report_descriptor(ctx->dev, desc, sizeof(desc))) < 0)
+	    goto werror;
+	return ctl_reply(7, (void*)desc, n, rbuf, rsize);
+    }
+
     default:
 	goto badarg;
     }

@@ -17,6 +17,7 @@
 -export([read/2, read/3, write/2]).
 -export([get_feature_report/3, send_feature_report/3]).
 -export([setopts/2]).
+-export([get_report_descriptor/1]).
 
 -define(CMD_ENUMERATE,                1).
 -define(CMD_OPEN,                     2).
@@ -32,6 +33,7 @@
 -define(CMD_GET_SERIAL_NUMBER_STRING, 12).
 -define(CMD_GET_INDEXED_STRING,       13).
 -define(CMD_SET_DEBUG,                14).
+-define(CMD_GET_REPORT_DESCRIPTOR,    15).
 
 -define(is_uint8(X), (((X) band (bnot 16#ff)) =:= 0)).
 -define(is_uint16(X), (((X) band (bnot 16#ffff)) =:= 0)).
@@ -71,6 +73,9 @@ get_product_string(Port) when is_port(Port) ->
 
 get_serial_number_string(Port) when is_port(Port) ->
     call(Port, ?CMD_GET_SERIAL_NUMBER_STRING, []).
+
+get_report_descriptor(Port) when is_port(Port) ->
+    call(Port, ?CMD_GET_REPORT_DESCRIPTOR, []).
 
 get_indexed_string(Port, Ix) when  is_port(Port), is_integer(Ix) ->
     call(Port, ?CMD_GET_INDEXED_STRING, <<Ix:32/signed>>).

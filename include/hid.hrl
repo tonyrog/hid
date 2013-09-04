@@ -37,12 +37,12 @@
 	  interface_number :: integer()
 	 }).
 
+
 %% constant needed building HID report descriptors
--define(ITEM_SHORT(Tag,Type,Size), 
-	(((Tag) bsl 4) bor ((Type) bsl 2) bor (Size))).
+-define(ITEM_SHORT(Tag,Type,Size), Tag:4, Type:2, Size:2).
 
 %% <<?ITEM_LONG, Size, Tag, Data:Size/binary>>
--define(ITEM_LONG,          2#11111110).
+-define(ITEM_LONG, ?ITEM_SHORT(2#1111,2#11,2#10)).
 
 %% <<Tag:4, Type:2, Size:2>>
 -define(TYPE_MAIN,     2#00).
@@ -58,8 +58,8 @@
 %% Main items
 -define(TAG_INPUT,          2#1000).
 -define(TAG_OUTPUT,         2#1001).
--define(TAG_FEATURE,        2#1011).
 -define(TAG_COLLECTION,     2#1010).
+-define(TAG_FEATURE,        2#1011).
 -define(TAG_END_COLLECTION, 2#1100).
 
 %% collection types
@@ -118,19 +118,19 @@
 -define(TAG_DELIMITER,          2#1010).
 
 %% Usage page 
--define(GENERIC_DESKTOP, 16#01).
--define(SIMULATION_CONTROLS,      16#02).
--define(VR_CONTROLS,16#03).
--define(SPORT_CONTROLS,16#04).
--define(GAME_CONTROLS,16#05).
--define(GENERIC_DEVICE,16#06).
--define(KEYBOARD_KEYPAD,16#07).
--define(LEDS,16#08).
--define(BUTTON,16#09).
--define(ORDINAL,16#0A).
--define(TELEPHONY,16#0B).
--define(CONSUMER_DEVICES,16#0C).
--define(DIGITIZER,16#0D).
+-define(GENERIC_DESKTOP,     16#01).
+-define(SIMULATION_CONTROLS, 16#02).
+-define(VR_CONTROLS,         16#03).
+-define(SPORT_CONTROLS,      16#04).
+-define(GAME_CONTROLS,       16#05).
+-define(GENERIC_DEVICE,      16#06).
+-define(KEYBOARD_KEYPAD,     16#07).
+-define(LEDS,                16#08).
+-define(BUTTON,              16#09).
+-define(ORDINAL,             16#0A).
+-define(TELEPHONY,           16#0B).
+-define(CONSUMER_DEVICES,    16#0C).
+-define(DIGITIZER,           16#0D).
 %% ...
 
 %% GENERIC_DESKTOP: usage
@@ -166,8 +166,8 @@
 -define(Vno, 16#46).
 -define(FEATURE_NOTIFICATION, 16#47).
 -define(RESOLUTION_MULTIPLIER, 16#48).
+%% ...
 
-%% Bu
 
 %% macros used to parse and generate descriptors
 %% MAIN - "normal" sized
@@ -233,5 +233,34 @@
 	?ITEM_SHORT(?TAG_DELIMITER,?TYPE_LOCAL,?SIZE_1),(1)).
 -define(DELIMITER_CLOSE(),
 	?ITEM_SHORT(?TAG_DELIMITER,?TYPE_LOCAL,?SIZE_1),(0)).
+
+-record(hid_global,
+	{
+	  usage_page,
+	  logical_minimum,
+	  logical_maximum,
+	  pysical_minimum,
+	  pysical_maximum,
+	  unit_exponent, 
+	  unit,
+	  report_size,
+	  report_id,
+	  report_count
+	}).
+
+-record(hid_item,
+	{
+	  global,
+	  usage = [],
+	  usage_minimum,
+	  usage_maximum,
+	  designator_index,
+	  designator_minimum,
+	  designator_maximum,
+	  string_index,
+	  string_minimum,
+	  string_maximum,
+	  items = []
+	}).
 
 -endif.
