@@ -157,13 +157,16 @@ write(Port, Data) when is_port(Port), is_binary(Data) ->
     write_(Port, Data).
 
 setopts(Port, [{active,true}|Opts]) when is_port(Port) ->
-    call(Port, ?CMD_SET_ACTIVE, <<1>>),
+    call(Port, ?CMD_SET_ACTIVE, <<-1:32>>),
     setopts(Port, Opts);
 setopts(Port, [{active,false}|Opts]) when is_port(Port) ->
-    call(Port, ?CMD_SET_ACTIVE, <<0>>),
+    call(Port, ?CMD_SET_ACTIVE, <<0:32>>),
     setopts(Port, Opts);
 setopts(Port, [{active,once}|Opts]) when is_port(Port) ->
-    call(Port, ?CMD_SET_ACTIVE, <<2>>),
+    call(Port, ?CMD_SET_ACTIVE, <<1:32>>),
+    setopts(Port, Opts);
+setopts(Port, [{active,N}|Opts]) when is_port(Port), is_integer(N), N >= -1 ->
+    call(Port, ?CMD_SET_ACTIVE, <<N:32>>),
     setopts(Port, Opts);
 setopts(Port, [{buffer,Size}|Opts]) when is_port(Port), is_integer(Size),
 					 Size > 0 ->
@@ -172,7 +175,26 @@ setopts(Port, [{buffer,Size}|Opts]) when is_port(Port), is_integer(Size),
 setopts(Port, [{debug,Level}|Opts]) when is_port(Port), is_integer(Level) ->
     call(Port, ?CMD_SET_DEBUG, <<Level:32>>),
     setopts(Port, Opts);
-
+setopts(Port, [{debug,Level}|Opts]) when is_port(Port) ->
+    if is_integer(Level), Level >= -1, Level =< 7 ->
+	    call(Port, ?CMD_SET_DEBUG,<<Level:32>>);
+       true ->
+	    case Level of
+		true       -> call(Port, ?CMD_SET_DEBUG,<<7:32>>);
+		false      -> call(Port, ?CMD_SET_DEBUG,<<-1:32>>);
+		debug      -> call(Port, ?CMD_SET_DEBUG,<<7:32>>);
+		info       -> call(Port, ?CMD_SET_DEBUG,<<6:32>>);
+		notice     -> call(Port, ?CMD_SET_DEBUG,<<5:32>>);
+		warning    -> call(Port, ?CMD_SET_DEBUG,<<4:32>>);
+		error      -> call(Port, ?CMD_SET_DEBUG,<<3:32>>);
+		critical   -> call(Port, ?CMD_SET_DEBUG,<<2:32>>);
+		alert      -> call(Port, ?CMD_SET_DEBUG,<<1:32>>);
+		emergency ->  call(Port, ?CMD_SET_DEBUG,<<0:32>>);
+		none      ->  call(Port, ?CMD_SET_DEBUG,<<-1:32>>);
+		_ -> ignore
+	    end
+    end,
+    setopts(Port, Opts);
 setopts(_Port, []) ->
     ok.
 
