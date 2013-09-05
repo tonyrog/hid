@@ -209,6 +209,15 @@ static ErlDrvSSizeT ctl_reply(int rep, char* buf, ErlDrvSizeT len,
     return len+1;
 }
 
+// calculate wstring_size in number of ErlTermData items
+static int wstring_size(wchar_t* wstr)
+{
+    int len = 0;
+    if (wstr != NULL)
+	len = 2*wcslen(wstr) + 2;
+    return len+1; 
+}
+
 
 static size_t device_info_size(struct hid_device_info* ptr)
 {
@@ -219,10 +228,11 @@ static size_t device_info_size(struct hid_device_info* ptr)
 	sz += 3;  // ERL_DRV_STRING: path
 	sz += 2;  // ERL_DRV_UINT: vendor_id
 	sz += 2;  // ERL_DRV_UINT: product_id
-	sz += 2+1+2*wcslen(ptr->serial_number);        // ERL_DRV_LIST<n1>
+
+	sz += wstring_size(ptr->serial_number);
 	sz += 2;  // ERL_DRV_UINT: release_number
-	sz += 2+1+2*wcslen(ptr->manufacturer_string);  // ERL_DRV_LIST<n2>
-	sz += 2+1+2*wcslen(ptr->product_string);       // ERL_DRV_LIST<n3>
+	sz += wstring_size(ptr->manufacturer_string);
+	sz += wstring_size(ptr->product_string);
 	sz += 2;  // ERL_DRV_UINT: usage_page
 	sz += 2;  // ERL_DRV_UINT: usage
 	sz += 2;  // ERL_DRV_UINT: interace_number
@@ -404,6 +414,7 @@ static ErlDrvSSizeT hid_drv_ctl(ErlDrvData d,
 	pid = get_uint16(buf+2);
 	info = hid_enumerate(vid, pid);
 	ref  = ctx->ref++;
+	DEBUGF("hid_drv: enumerate info=%p", info);
 	
 	sz = device_info_size(info)+2*4;
 	DEBUGF("hid_drv: enumerate size = %d", sz);
