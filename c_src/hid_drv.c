@@ -230,16 +230,16 @@ static size_t device_info_size(struct hid_device_info* ptr)
     return sz + 2;  // ERL_DRV_LIST: <n>
 }
 
-static int build_wstring(ErlDrvTermData* data, int j, wchar_t* wptr)
+static int build_wstring(ErlDrvTermData* data, int j, wchar_t* wstr)
 {
-    if (wptr == NULL)
+    if (wstr == NULL)
 	data[j++] = ERL_DRV_NIL;
     else {
-	int len = 0;
-	while(*wptr != 0) {
+        int len = wcslen(wstr);
+	int i;
+	for (i = 0; i< len; i++) {
 	    data[j++] = ERL_DRV_UINT;
-	    data[j++] = (ErlDrvTermData) *wptr++;
-	    len++;
+	    data[j++] = (ErlDrvTermData) wstr[i];
 	}
 	data[j++] = ERL_DRV_NIL;
 	data[j++] = ERL_DRV_LIST;
@@ -292,9 +292,11 @@ static int device_info_build(ErlDrvTermData* data, int j, struct hid_device_info
 	ptr = ptr->next;
 	i++;
     }
-
-    data[j++] = ERL_DRV_LIST;
-    data[j++] = (ErlDrvTermData) i;
+    data[j++] = ERL_DRV_NIL;
+    if (i > 0) {
+      data[j++] = ERL_DRV_LIST;
+      data[j++] = (ErlDrvTermData) i+1;
+    }
     return j;
 }
 
@@ -442,8 +444,9 @@ static ErlDrvSSizeT hid_drv_ctl(ErlDrvData d,
 	    goto badarg;
 	vid = get_uint16(buf);
 	pid = get_uint16(buf+2);
-	for (i = 4, j=0; (i < len) && (j < MAX_SERIAL); i += 4, j++)
-	    serial[j] = get_uint32(buf+i);
+	j = 0;
+	for (i = 4; (i < len) && (j < MAX_SERIAL); i += 4)
+	    serial[j++] = get_uint32(buf+i);
 	if (j > 0) {
 	    serial[j++] = 0;
 	    serp = serial;
@@ -616,14 +619,12 @@ badarg:
     goto error;
 
 werror: {
-	const wchar_t* err_wstr;
+	const wchar_t* err_wstr = NULL;
 	if (ctx->dev)
 	    err_wstr = hid_error(ctx->dev);
-	else
-	    err_wstr = L"unknown";
-
+	if (err_wstr == NULL)
+	  goto error; // try posix error
 	DEBUGF("hid: werror %ls\n", err_wstr);
-
 	return ctl_string_reply(ctx, 5, (wchar_t*) err_wstr, rbuf, rsize);
     }
 
