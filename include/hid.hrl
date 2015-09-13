@@ -166,6 +166,27 @@
 -define(Vno, 16#46).
 -define(FEATURE_NOTIFICATION, 16#47).
 -define(RESOLUTION_MULTIPLIER, 16#48).
+
+-define(SYSTEM_CONTROL, 16#80).
+-define(SYSTEM_POWER_DOWN, 16#81).
+-define(SYSTEM_SLEEP, 16#82).
+-define(SYSTEM_WAKE_UP, 16#83).
+-define(SYSTEM_CONTEXT_MENU, 16#84).
+-define(SYSTEM_MAIN_MENU, 16#85).
+-define(SYSTEM_APP_MENU, 16#86).
+-define(SYSTEM_MENU_HELP, 16#87).
+-define(SYSTEM_MENU_EXIT, 16#88).
+-define(SYSTEM_MENU_SELECT, 16#89).
+-define(SYSTEM_MENU_RIGHT, 16#8A).
+-define(SYSTEM_MENU_LEFT, 16#8B).
+-define(SYSTEM_MENU_UP, 16#8C).
+-define(SYSTEM_MENU_DOWN, 16#8D).
+-define(SYSTEM_COLD_RESTART, 16#8E).
+-define(SYSTEM_WARM_RESTART, 16#8F).
+-define(D_PAD_UP, 16#90).
+-define(D_PAD_DOWN, 16#91).
+-define(D_PAD_RIGHT, 16#92).
+-define(D_PAD_LEFT, 16#93).
 %% ...
 
 

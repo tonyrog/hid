@@ -54,7 +54,7 @@ loop(D, B, X, Y, Wx, Wy) ->
 	    %% Two axis wheel mouse
 	    mouse_input(D, B, X, Y, Wx, Wy, B1,Xd,Yd,Wxd,Wyd);
 	{call,From,get_position} ->
-	    reply(From,{position,X,Y}),
+	    reply(From,{X,Y}),
 	    loop(D, B, X, Y, Wx, Wy);
 	{call,From,stop} ->
 	    reply(From, ok),

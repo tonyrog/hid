@@ -42,15 +42,15 @@ decode_item(Tail,end_collection,_Data,Cs,Gs,G,L) ->
 decode_item(Tail,input,Data,Cs,Gs,G,L) ->
     Bits = decode_parts(decode_unsigned(Data)),
     E = {input,Bits,L#hid_item { global = G }},
-    decode(Tail,[E|Cs],Gs,G,L);  %% clear L?
+    decode(Tail,[E|Cs],Gs,G,#hid_item{ });  %% clear L?
 decode_item(Tail,output,Data,Cs,Gs,G,L) ->
     Bits = decode_parts(decode_unsigned(Data)),
     E = {output,Bits,L#hid_item { global = G }},
-    decode(Tail,[E|Cs],Gs,G,L);  %% clear L?
+    decode(Tail,[E|Cs],Gs,G,#hid_item{ });  %% clear L?
 decode_item(Tail,feature,Data,Cs,Gs,G,L) ->
     Bits = decode_parts(decode_unsigned(Data)),
     E = {feature,Bits,L#hid_item { global = G }},
-    decode(Tail,[E|Cs],Gs,G,L);  %% clear L?
+    decode(Tail,[E|Cs],Gs,G,#hid_item{ });  %% clear L?
 
 %% Global items
 decode_item(Tail,push,_Data,Cs,Gs,G,L) ->
@@ -147,11 +147,13 @@ pop_collection([E|Stack], Collection) ->
 decode_unsigned(<<>>) -> 0;
 decode_unsigned(<<X:8>>) ->  X;
 decode_unsigned(<<X:16/little>>) -> X;
+decode_unsigned(<<X:24/little>>) -> X;
 decode_unsigned(<<X:32/little>>) -> X.
 
 decode_signed(<<>>) -> 0;
 decode_signed(<<X:8/little-signed>>) ->  X;
 decode_signed(<<X:16/little-signed>>) -> X;
+decode_signed(<<X:24/little-signed>>) -> X;
 decode_signed(<<X:32/little-signed>>) -> X.
 
 -define(ite(C,T,E), if (C) -> T; true -> E end).
