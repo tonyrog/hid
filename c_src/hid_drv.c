@@ -80,6 +80,7 @@ static inline uint16_t get_uint16(uint8_t* ptr)
     return value;
 }
 
+#ifdef __NOT_USED__
 static inline uint8_t get_uint8(uint8_t* ptr)
 {
     uint8_t value = (ptr[0]<<0);
@@ -91,6 +92,7 @@ static inline void put_uint16(uint8_t* ptr, uint16_t v)
     ptr[0] = v>>8;
     ptr[1] = v;
 }
+#endif
 
 static inline void put_uint32(uint8_t* ptr, uint32_t v)
 {
