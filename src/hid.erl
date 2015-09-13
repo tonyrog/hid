@@ -40,6 +40,7 @@
 -define(is_uint32(X), (((X) band (bnot 16#ffffffff)) =:= 0)).
 
 -define(MAX_BUFFER, 16#ffffffff).  %% just a big buffer
+-define(DEFAULT_TIMEOUT, 100).
 
 enumerate() ->
     enumerate(0,0).
@@ -126,31 +127,29 @@ close(Port) when is_port(Port) ->
     close_(Port).
 
 read(Port, Size) when is_port(Port), is_integer(Size), Size > 0 ->
-    setopts(Port, [{buffer,Size},{active,once}]),
-    receive
-	{hid, Port, Data} ->
-	    setopts(Port, [{buffer,?MAX_BUFFER}]),
-	    {ok, Data}
-    end.
+    read_(Port, Size, <<>>, ?DEFAULT_TIMEOUT).
 
-read(Port, Size, infinity) when is_port(Port), ?is_uint32(Size) ->
-    read(Port,Size);
-read(Port, Size, Tmo) when is_port(Port), ?is_uint32(Size),
-			   ?is_uint32(Tmo) ->
+read(Port, Size, infinity) when
+      is_port(Port), is_integer(Size), Size > 0 ->
+    read_(Port, Size, <<>>, infinity);
+read(Port, Size, Timeout) when
+      is_port(Port), is_integer(Size), Size > 0, 
+      is_integer(Timeout), Timeout >= 0 ->
+    read_(Port, Size, <<>>, Timeout).
+    
+read_(Port, Size, Acc, Timeout) ->
     setopts(Port, [{buffer,Size},{active,once}]),
     receive
 	{hid, Port, Data} ->
-	    setopts(Port, [{buffer,?MAX_BUFFER}]),
-	    {ok, Data}
-    after
-	Tmo ->
-	    setopts(Port, [{buffer,?MAX_BUFFER},{active,false}]),
-	    receive
-		{hid,Port,Data} -> %% got some at the last moment
-		    {ok,Data}
-	    after 0 ->
-		    {error, timeout}
+	    Size1 = Size - byte_size(Data),
+	    Acc1  = <<Acc/binary,Data/binary>>,
+	    if Size1 =< 0 ->
+		    {ok,Acc1};
+	       true ->
+		    read_(Port,Size1,Acc1,Timeout)
 	    end
+    after Timeout ->
+	    {error,timeout}
     end.
 
 write(Port, Data) when is_port(Port), is_binary(Data) ->
