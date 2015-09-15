@@ -11,6 +11,7 @@
 -define(WRITE_COMMAND, 16#A0).
 -define(WRITE_COMMAND_WORD, 16#A2).
 -define(DATA_START, 16#0100).
+-define(CMD_OK, <<16#a5,16#a5,16#a5,16#a5,16#a5,16#a5,16#a5,16#a5>>).
 
 open() ->
     hid:open(16#1941, 16#8021).
@@ -28,13 +29,19 @@ read_block(Port, Address) ->
 	    Error
     end.
 
+read_ack(Port) ->
+    case hid:read(Port, 8) of
+	{ok, ?CMD_OK} -> ok;
+	{ok, _} -> {error, ack_error};
+	Error -> Error
+    end.
+
 write_block(Port, Address, Data) when byte_size(Data) =:= 32 ->
     case hid:write(Port, <<?WRITE_COMMAND,Address:16,?END_MARK,
 			   ?WRITE_COMMAND,Address:16,?END_MARK>>) of
 	{ok,8} ->
 	    case hid:write(Port, Data) of
-		{ok,32} ->
-		    hid:read(Port, 8);  %% read ack
+		{ok,32} -> read_ack(Port);
 		{ok,_} -> {error,write_error};
 		Error -> Error
 	    end;
@@ -46,8 +53,7 @@ write_block(Port, Address, Data) when byte_size(Data) =:= 32 ->
 write_command_word(Port,Addr,Word) ->
     case hid:write(Port, <<?WRITE_COMMAND_WORD, Addr:16, ?END_MARK,
 			   ?WRITE_COMMAND_WORD, Word:16, ?END_MARK>>) of
-	{ok, 8} ->
-	    hid:read(Port, 8);
+	{ok, 8} -> read_ack(Port);
 	{ok, _} -> {error, write_error};
 	Error -> Error
     end.
@@ -110,6 +116,14 @@ hex(List) when is_list(List) ->
     hex(list_to_binary(List));
 hex(Int) when is_integer(Int) ->
     integer_to_list(Int, 16).
+
+%% set the read period to 'Period' minutes, report the old period
+set_read_period(Port, Period) ->
+    {ok,Data} = read_block(Port, 0),  %% read the first block
+    <<Head:16/binary, OldPeriod:8, Tail:15/binary>> = Data,
+    ok = write_block(Port, 0, <<Head:16/binary, Period:8, Tail:15/binary>>),
+    ok = write_data_refresh(Port),
+    {ok, OldPeriod}.
 
 
 %% The data is stored in little endian (and lsb bit order!!!)
