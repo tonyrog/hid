@@ -28,6 +28,33 @@ read_block(Port, Address) ->
 	    Error
     end.
 
+write_block(Port, Address, Data) when byte_size(Data) =:= 32 ->
+    case hid:write(Port, <<?WRITE_COMMAND,Address:16,?END_MARK,
+			   ?WRITE_COMMAND,Address:16,?END_MARK>>) of
+	{ok,8} ->
+	    case hid:write(Port, Data) of
+		{ok,32} ->
+		    hid:read(Port, 8);  %% read ack
+		{ok,_} -> {error,write_error};
+		Error -> Error
+	    end;
+	{ok,_} -> {error, write_error};
+	Error -> Error
+    end.
+
+%% write command word return {ok, <<8 bytes ack>>} or  {error, Reason}
+write_command_word(Port,Addr,Word) ->
+    case hid:write(Port, <<?WRITE_COMMAND_WORD, Addr:16, ?END_MARK,
+			   ?WRITE_COMMAND_WORD, Word:16, ?END_MARK>>) of
+	{ok, 8} ->
+	    hid:read(Port, 8);
+	{ok, _} -> {error, write_error};
+	Error -> Error
+    end.
+    
+write_data_refresh(Port) ->
+    write_command_word(Port, 16#001A, 16#AA00).
+
 read_blocks(_Port, _Address, 0) ->
     {ok, <<>>};
 read_blocks(Port, Address, Length) ->
@@ -53,9 +80,13 @@ read_data(Port, Address) ->
     {ok, Data}.
 
 %% read a sample
-read(Port, Address) ->
+read_sample(Port) ->
+    [{current_pos, Pos}] = read_current_pos(Port),
+    read_sample(Port, Pos).
+
+read_sample(Port, Address) ->
     {ok,Data} = read_data(Port, Address),
-    decode_WH1080(Data).
+    decode(wh1080,Data).
 
 read_current_pos(Port) ->
     {ok,Data} = read_data(Port, 16),
@@ -82,22 +113,24 @@ hex(Int) when is_integer(Int) ->
 
 
 %% The data is stored in little endian (and lsb bit order!!!)
-decode_WH1080(<<Delay:8, HumIn:8, TempIn:16/little-signed, 
-		HumOut:8, TempOut:16/little-signed, AbsPressure:16/little,
-		WindAveL:8, WindGustL:8, WindGustH:4, WindAveH:4, WindDir:8,
-		Rain:16/little, Status:8>>) ->
+decode(wh1080,
+       <<Delay:8, HumIn:8, TempIn:16/little-signed, 
+	 HumOut:8, TempOut:16/little-signed, AbsPressure:16/little,
+	 WindAveL:8, WindGustL:8, WindGustH:4, WindAveH:4, WindDir:8,
+	 Rain:16/little, Status:8>>) ->
     WindAve = WindAveL + (WindAveH bsl 8),    %% lsb bit order
     WindGust = WindGustL + (WindGustH bsl 8), %% lsb bit order
     [{delay,Delay},{hum_in,HumIn},{temp_in,TempIn*0.1},
      {hum_out,HumOut}, {temp_out, TempOut*0.1}, {abs_pressure,AbsPressure*0.1},
      {wind_ave, WindAve*0.1}, {wind_gust,WindGust*0.1}, {wind_dir,WindDir},
-     {rain, Rain*0.3}, {status,Status}].
+     {rain, Rain*0.3}, {status,Status}];
 
-decode_WH3080(<<Delay:8, HumIn:8, TempIn:16/little-signed, 
-		HumOut:8, TempOut:16/signed, AbsPressure:16/little,
-		WindAveL:8, WindGustL:8, WindGustH:4, WindAveH:4, WindDir:8,
-		Rain:16/little,Status:8,
-		Illumninace:24/little,Uv:8>>) ->
+decode(wh3080,
+       <<Delay:8, HumIn:8, TempIn:16/little-signed, 
+	 HumOut:8, TempOut:16/signed, AbsPressure:16/little,
+	 WindAveL:8, WindGustL:8, WindGustH:4, WindAveH:4, WindDir:8,
+	 Rain:16/little,Status:8,
+	 Illumninace:24/little,Uv:8>>) ->
     WindAve = WindAveL + (WindAveH bsl 8),
     WindGust = WindGustL + (WindGustH bsl 8),
     [{delay,Delay},{hum_in,HumIn},{temp_in,TempIn*0.1},
