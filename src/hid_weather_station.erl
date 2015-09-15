@@ -118,11 +118,15 @@ hex(Int) when is_integer(Int) ->
     integer_to_list(Int, 16).
 
 %% set the read period to 'Period' minutes, report the old period
-set_read_period(Port, Period) ->
+set_read_period(Period) ->
+    {ok,Port} = open(),
     {ok,Data} = read_block(Port, 0),  %% read the first block
     <<Head:16/binary, OldPeriod:8, Tail:15/binary>> = Data,
-    ok = write_block(Port, 0, <<Head:16/binary, Period:8, Tail:15/binary>>),
-    ok = write_data_refresh(Port),
+    close(Port),
+    {ok,Port1} = open(),
+    ok = write_block(Port1, 0, <<Head:16/binary, Period:8, Tail:15/binary>>),
+    ok = write_data_refresh(Port1),
+    close(Port1),
     {ok, OldPeriod}.
 
 
