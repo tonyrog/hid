@@ -35,6 +35,12 @@ start() ->
 		       logger_start()
 	       end).
 
+%%
+%% Start the logger and write samples to valleman.csv, 
+%% each line has a max length of about 54 bytes (running 7 days)
+%% So running 7 days taking 1 samples per second consume 32659200 bytes
+%% about 31 Mb.
+%%
 start_file() ->
     start_file("valleman.csv").
 
@@ -95,9 +101,7 @@ logger_loop(Port, Fd, Tstart, Tlast, Tack, Delay) ->
 		    Tdiff = (Tnew - Tlast) band 16#ffff,
 		    Tack1 = Tack + Tdiff*10,
 		    Tnow = Tstart + Tack1,
-		    io:format(Fd, "\"~s\",~w, ~.2f, ~.2f, ~.2f, ~.2f\n",
-			      [format_abs_time(Tnow), Tack1, 
-			       Ch1, Ch2, Ch3, Ch4]),
+		    emit_sample(Fd, Tnow, Tack1, Ch1, Ch2, Ch3, Ch4),
 		    logger_loop_wait(Port, Fd, Tstart, Tnew, Tack1, Delay);
 	       true ->
 		    logger_loop_wait(Port, Fd, Tstart, Tnew, Tack, Delay)
@@ -114,7 +118,10 @@ logger_loop_wait(Port, Fd, Tstart, Tlast, Tack, Delay) ->
 	    logger_loop(Port, Fd, Tstart, Tlast, Tack, Delay)
     end.
 
-
+emit_sample(Fd, Tms, Tack, Ch1, Ch2, Ch3, Ch4) ->
+    io:format(Fd, "\"~s\",~w,~.2f,~.2f,~.2f,~.2f\n",
+	      [format_abs_time(Tms), Tack, 
+	       Ch1, Ch2, Ch3, Ch4]).
 
 format_abs_time() ->
     format_abs_time(milli_seconds_from_0000()).
@@ -127,7 +134,7 @@ milli_seconds_from_0000() ->
 
 format_abs_time(Tms) ->
     Ts = Tms div 1000,
-    _Ms = Tms rem 1000,
+    %% _Ms = Tms rem 1000,
     {{Year,Mon,Day},{H,M,S}} = calendar:gregorian_seconds_to_datetime(Ts),
     io_lib:format("~4..0w-~2..0w-~2..0wT~2..0w:~2..0w:~2..0w",
 		  [Year,Mon,Day,H,M,S]).
