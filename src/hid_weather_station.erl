@@ -142,7 +142,8 @@ decode(wh1080,
     WindGust = WindGustL + (WindGustH bsl 8), %% lsb bit order
     [{delay,Delay},{hum_in,HumIn},{temp_in,TempIn*0.1},
      {hum_out,HumOut}, {temp_out, TempOut*0.1}, {abs_pressure,AbsPressure*0.1},
-     {wind_ave, WindAve*0.1}, {wind_gust,WindGust*0.1}, {wind_dir,WindDir},
+     {wind_ave, WindAve*0.1}, {wind_gust,WindGust*0.1}, 
+     {wind_dir,(WindDir rem 16)*22.5},
      {rain, Rain*0.3}, {status,Status}];
 
 decode(wh3080,
