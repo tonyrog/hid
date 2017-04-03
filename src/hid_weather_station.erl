@@ -12,6 +12,8 @@
 -define(WRITE_COMMAND_WORD, 16#A2).
 -define(DATA_START, 16#0100).
 -define(CMD_OK, <<16#a5,16#a5,16#a5,16#a5,16#a5,16#a5,16#a5,16#a5>>).
+-define(READ_BLOCK_TIMEOUT, 2000).
+-define(READ_ACK_TIMEOUT, 1000).
 
 open() ->
     hid:open(16#1941, 16#8021).
@@ -24,13 +26,13 @@ read_block(Port, Address) ->
     case hid:write(Port, <<?READ_COMMAND,Address:16,?END_MARK,
 			   ?READ_COMMAND,Address:16,?END_MARK>>) of
 	{ok,8} ->
-	    hid:read(Port, 32);
+	    hid:read(Port, 32, ?READ_BLOCK_TIMEOUT);
 	Error ->
 	    Error
     end.
 
 read_ack(Port) ->
-    case hid:read(Port, 8) of
+    case hid:read(Port, 8, ?READ_ACK_TIMEOUT) of
 	{ok, ?CMD_OK} -> ok;
 	{ok, _} -> {error, ack_error};
 	Error -> Error
