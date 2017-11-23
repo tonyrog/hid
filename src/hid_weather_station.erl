@@ -82,33 +82,55 @@ read_blocks(_Port, _Address, _Length, Acc) ->
 
 read_data(Port, Address) ->
     BlockAddress = Address band (bnot 31),
-    {ok, Block} = read_block(Port, BlockAddress),
-    Offset = Address - BlockAddress,
-    <<_:Offset/binary, Data:16/binary, _/binary>> = Block,
-    {ok, Data}.
+    case read_block(Port, BlockAddress) of
+	{ok, Block} ->
+	    Offset = Address - BlockAddress,
+	    <<_:Offset/binary, Data:16/binary, _/binary>> = Block,
+	    {ok, Data};
+	Error ->
+	    Error
+    end.
 
 %% read a sample
 read_sample(Port) ->
-    [{current_pos, Pos}] = read_current_pos(Port),
-    read_sample(Port, Pos).
+    case read_current_pos(Port) of
+	{ok,[{current_pos, Pos}]} ->
+	    read_sample(Port, Pos);
+	Error ->
+	    Error
+    end.
 
 read_sample(Port, Address) ->
-    {ok,Data} = read_data(Port, Address),
-    decode(wh1080,Data).
+    case read_data(Port, Address) of
+	{ok,Data} ->
+	    {ok,decode(wh1080,Data)};
+	Error ->
+	    Error
+    end.
 
 read_current_pos(Port) ->
-    {ok,Data} = read_data(Port, 16),
-    decode_current_pos(Data).
+    case read_data(Port, 16) of
+	{ok,Data} ->
+	    {ok,decode_current_pos(Data)};
+	Error ->
+	    Error
+    end.
 
 read_fixed_16(Port) ->
-    {ok,Data} = read_data(Port, 16),
-    decode_fixed_16(Data).
+    case read_data(Port, 16) of
+	{ok,Data} ->
+	    {ok,decode_fixed_16(Data)};
+	Error -> Error
+    end.
 
 %% read fixed data 32 .. 256
 read_fixed(Port) ->
-    {ok, Data} = read_blocks(Port, 32, 224),
-    io:format("fixed len=~w, data=~p\n", [byte_size(Data), hex(Data)]),
-    decode_fixed(Data).
+    case read_blocks(Port, 32, 224) of
+	{ok, Data} ->
+	    %% io:format("fixed len=~w, data=~p\n", [byte_size(Data), hex(Data)]),
+	    {ok,decode_fixed(Data)};
+	Error -> Error
+    end.
 
 %% convert to hex
 hex(Bin) when is_binary(Bin) ->
