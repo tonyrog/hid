@@ -665,16 +665,6 @@ static void hid_drv_outputv(ErlDrvData d, ErlIOVec *ev)
     DEBUGF("hid_drv: outputv");
 }
 
-static void hid_drv_event(ErlDrvData d, ErlDrvEvent e,
-				  ErlDrvEventData ed)
-{
-    (void) d;
-    (void) e;
-    (void) ed;
-//  hid_ctx_t* ctx = (hid_ctx_t*) d;
-    DEBUGF("hid_drv: event called");
-}
-
 static void hid_drv_ready_input(ErlDrvData d, ErlDrvEvent e)
 {
     uint8_t  buf[MAX_READ_LENGTH];
@@ -751,6 +741,7 @@ DRIVER_INIT(hid_drv)
 
     DEBUGF("hid DRIVER_INIT");
 
+    memset(ptr, 0, sizeof(ErlDrvEntry));    
     ptr->driver_name = "hid_drv";
     ptr->init  = hid_drv_init;
     ptr->start = hid_drv_start;
@@ -765,7 +756,6 @@ DRIVER_INIT(hid_drv)
     ptr->ready_async = 0;
     ptr->flush = 0;
     ptr->call = 0;
-    ptr->event = hid_drv_event;
     ptr->extended_marker = ERL_DRV_EXTENDED_MARKER;
     ptr->major_version = ERL_DRV_EXTENDED_MAJOR_VERSION;
     ptr->minor_version = ERL_DRV_EXTENDED_MINOR_VERSION;
